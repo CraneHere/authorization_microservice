@@ -32,6 +32,6 @@ def get_auth_data():
     return {"secret_key": settings.SECRET_KEY, "algorithm": settings.ALGORITHM}
 
 def get_yandex_auth_url():
-    return (f"https://oauth.yandex.ru/authorize?response_type=code"
+    return (f"http://oauth.yandex.ru/authorize?response_type=code"
             f"&client_id={settings.YANDEX_CLIENT_ID}"
             f"&redirect_uri={settings.YANDEX_REDIRECT_URI}")

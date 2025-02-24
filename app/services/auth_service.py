@@ -1,5 +1,7 @@
 from passlib.context import CryptContext
 
+import httpx
+from typing import Optional
 from jose import jwt, JWTError
 from datetime import datetime, timedelta, timezone
 from app.config import get_auth_data
@@ -11,11 +13,9 @@ from app.services.users_service import UsersService
 import requests
 from urllib.parse import urlencode
 from app.config import settings
+from pydantic import BaseModel
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-YANDEX_TOKEN_URL = "https://oauth.yandex.ru/token"
-YANDEX_USER_INFO_URL = "https://login.yandex.ru/info"
 
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
@@ -68,48 +68,51 @@ async def get_current_user(token: str = Depends(get_token)):
 
     return user
 
-async def get_yandex_token(code: str) -> str:
-    data = {
+class YandexAuthTokenResponse(BaseModel):
+    access_token: str
+    expires_in: int
+    refresh_token: str
+    token_type: str
+
+async def get_yandex_access_token(code: str):
+    url = "https://oauth.yandex.ru/token"
+    params = {
         "grant_type": "authorization_code",
         "code": code,
         "client_id": settings.YANDEX_CLIENT_ID,
         "client_secret": settings.YANDEX_CLIENT_SECRET,
+        "redirect_uri": settings.YANDEX_REDIRECT_URI,
     }
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
 
-    response = requests.post(YANDEX_TOKEN_URL, data=urlencode(data), headers=headers)
-    if response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Ошибка при получении токена")
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, data=params)
+        response.raise_for_status()
+        return YandexAuthTokenResponse(**response.json())
 
-    return response.json().get("access_token")
+class YandexUserInfo(BaseModel):
+    id: str
+    login: str
+    first_name: str
+    last_name: str
+    display_name: str
 
-async def get_yandex_user_info(access_token: str) -> dict:
-    headers = {"Authorization": f"OAuth {access_token}"}
-    response = requests.get(YANDEX_USER_INFO_URL, headers=headers)
+async def get_yandex_user_info(access_token: str):
+    url = "https://api.yandex.ru/info"
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
 
-    if response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Ошибка при получении данных пользователя")
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
+        response.raise_for_status()
+        return YandexUserInfo(**response.json())
 
-    return response.json()
 
-async def authenticate_yandex_user(code: str, users_service) -> dict:
-    access_token = await get_yandex_token(code)
-    user_info = await get_yandex_user_info(access_token)
+async def authenticate_yandex_user(code: str, users_service: UsersService):
+    token_data = await get_yandex_access_token(code)
 
-    yandex_id = user_info.get("id")
-    email = user_info.get("default_email", f"{yandex_id}@yandex.ru")
-    first_name = user_info.get("first_name", "")
-    last_name = user_info.get("last_name", "")
+    user_info = await get_yandex_user_info(token_data.access_token)
 
-    user = await users_service.get_user_by_yandex_id(yandex_id)
-    if not user:
-        user = await users_service.create_user(
-            email=email,
-            yandex_id=yandex_id,
-            first_name=first_name,
-            last_name=last_name,
-        )
+    user = await users_service.get_or_create_user_by_yandex_info(user_info)
 
-    token = users_service.create_jwt_token(user)
-
-    return {"access_token": token, "token_type": "bearer"}
+    return {"user": user, "access_token": token_data.access_token}

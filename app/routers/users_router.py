@@ -3,6 +3,7 @@ from fastapi.responses import RedirectResponse
 
 from urllib.parse import quote
 from app.services.users_service import UsersService
+import httpx
 from app.schemas.User_schema import User, RegisterUser, AuthUser
 from app.services.auth_service import get_password_hash, authenticate_user_by_username, create_access_token, \
     get_current_user, authenticate_yandex_user
@@ -89,14 +90,21 @@ async def make_admin(user_data: User = Depends(get_current_user)) -> dict:
 
 @router.get("/auth/yandex/login")
 async def login_yandex():
-    return RedirectResponse(get_yandex_auth_url())
-
+    auth_url = get_yandex_auth_url()
+    return RedirectResponse(auth_url)
 
 @router.get("/auth/yandex/callback")
-async def yandex_callback(request: Request, users_service: UsersService = Depends()):
+async def yandex_callback_users(request: Request, users_service: UsersService = Depends()):
+    return await process_yandex_callback(request, users_service)
+
+
+async def process_yandex_callback(request: Request, users_service: UsersService):
     code = request.query_params.get("code")
     if not code:
         return {"error": "Код авторизации отсутствует"}
 
-    auth_data = await authenticate_yandex_user(code, users_service)
-    return auth_data
+    try:
+        auth_data = await authenticate_yandex_user(code, users_service)
+        return auth_data
+    except httpx.HTTPStatusError as e:
+        return {"error": f"Ошибка при авторизации с Яндекс: {e.response.text}"}

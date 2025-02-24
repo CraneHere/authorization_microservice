@@ -1,11 +1,11 @@
-docker compose up -d
-alembic revision --autogenerate -m "Migration"
-alembic upgrade head
+docker compose up -d;
+alembic revision --autogenerate -m "Migration";
+alembic upgrade head;
 
-uvicorn app.main:app --reload --port 8000
-uvicorn notification_service:app --reload --port 8001
+uvicorn app.main:app --reload --port 8000;
+uvicorn notification_service:app --reload --port 8001;
 
-docker compose down -v
-docker compose ps
-docker compose logs kafka
-docker exec -it kafka kafka-topics --list --bootstrap-server kafka:9093
+docker compose down -v;
+docker compose ps;
+docker compose logs kafka;
+docker exec -it kafka kafka-topics --list --bootstrap-server kafka:9093;
