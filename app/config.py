@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str
 
+    YANDEX_CLIENT_ID: str
+    YANDEX_CLIENT_SECRET: str
+    YANDEX_REDIRECT_URI: str
+
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".env")
     )
@@ -26,3 +30,8 @@ def get_db_url():
 
 def get_auth_data():
     return {"secret_key": settings.SECRET_KEY, "algorithm": settings.ALGORITHM}
+
+def get_yandex_auth_url():
+    return (f"https://oauth.yandex.ru/authorize?response_type=code"
+            f"&client_id={settings.YANDEX_CLIENT_ID}"
+            f"&redirect_uri={settings.YANDEX_REDIRECT_URI}")

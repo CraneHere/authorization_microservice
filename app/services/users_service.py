@@ -4,6 +4,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.database import async_session_maker
 from app.models.User import User
 
+import jwt
+from app.config import settings
+
 
 class UsersService:
     @classmethod
@@ -60,3 +63,23 @@ class UsersService:
 
                 else:
                     return False
+
+    @classmethod
+    async def get_user_by_yandex_id(self, yandex_id: str):
+        return await self.db.users.find_one({"yandex_id": yandex_id})
+
+    @classmethod
+    async def create_user(self, email: str, yandex_id: str, first_name: str, last_name: str):
+        new_user = {
+            "email": email,
+            "yandex_id": yandex_id,
+            "first_name": first_name,
+            "last_name": last_name,
+        }
+        result = await self.db.users.insert_one(new_user)
+        return await self.db.users.find_one({"_id": result.inserted_id})
+
+    @classmethod
+    def create_jwt_token(self, user):
+        payload = {"sub": user["email"], "yandex_id": user["yandex_id"]}
+        return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)

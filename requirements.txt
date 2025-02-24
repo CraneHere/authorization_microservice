@@ -10,5 +10,6 @@ passlib[bcrypt]~=1.7.4
 alembic~=1.14.0
 pandas~=2.2.3
 numpy~=2.2.0
+PyJWT
 scikit-learn~=1.6.0
 confluent-kafka~=2.8.0

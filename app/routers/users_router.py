@@ -1,11 +1,14 @@
-from fastapi import APIRouter, HTTPException, status, Response, Depends
+from fastapi import APIRouter, HTTPException, status, Response, Depends, Request
+from fastapi.responses import RedirectResponse
 
+from urllib.parse import quote
 from app.services.users_service import UsersService
 from app.schemas.User_schema import User, RegisterUser, AuthUser
 from app.services.auth_service import get_password_hash, authenticate_user_by_username, create_access_token, \
-    get_current_user
+    get_current_user, authenticate_yandex_user
 from typing import Optional, List
 from app.services.kafka_producer import get_kafka_producer
+from app.config import get_yandex_auth_url
 import json
 
 
@@ -83,3 +86,17 @@ async def make_admin(user_data: User = Depends(get_current_user)) -> dict:
     if result:
         return {'message': 'Пользователь успешно назначен администратором'}
     return {'message': 'Пользователь уже является администратором'}
+
+@router.get("/auth/yandex/login")
+async def login_yandex():
+    return RedirectResponse(get_yandex_auth_url())
+
+
+@router.get("/auth/yandex/callback")
+async def yandex_callback(request: Request, users_service: UsersService = Depends()):
+    code = request.query_params.get("code")
+    if not code:
+        return {"error": "Код авторизации отсутствует"}
+
+    auth_data = await authenticate_yandex_user(code, users_service)
+    return auth_data
