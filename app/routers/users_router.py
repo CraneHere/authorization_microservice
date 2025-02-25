@@ -88,16 +88,12 @@ async def make_admin(user_data: User = Depends(get_current_user)) -> dict:
         return {'message': 'Пользователь успешно назначен администратором'}
     return {'message': 'Пользователь уже является администратором'}
 
-@router.get("/auth/yandex/login")
+@router.get("/auth/yandex/login", summary="Вход через яндекс")
 async def login_yandex():
     auth_url = get_yandex_auth_url()
     return RedirectResponse(auth_url)
 
-@router.get("/auth/yandex/callback")
-async def yandex_callback_users(request: Request, users_service: UsersService = Depends()):
-    return await process_yandex_callback(request, users_service)
-
-
+@router.get("/auth/yandex/callback", summary="Функция обратного вызова для яндекс")
 async def process_yandex_callback(request: Request, users_service: UsersService):
     code = request.query_params.get("code")
     if not code:
