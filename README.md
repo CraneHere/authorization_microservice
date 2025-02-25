@@ -2,8 +2,8 @@ docker compose up -d;
 alembic revision --autogenerate -m "Migration";
 alembic upgrade head;
 
-uvicorn app.main:app --reload --port 8000;
-uvicorn notification_service:app --reload --port 8001;
+uvicorn app.main:app --reload --port 8000; #authorization_microservice
+uvicorn main:app --reload --port 8001; #autorization_microservice_notification
 
 docker compose down -v;
 docker compose ps;
